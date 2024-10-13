@@ -14,8 +14,9 @@ describe('pick 유틸리티 단위 테스트', () => {
     };
 
     // Act: `pick` 함수 호출
-
+    const result = pick(obj, 'a');
     // Assert: 결과가 예상한 객체와 일치하는지 확인
+    expect(result).toEqual({ a: 'A' });
   });
 
   /**
@@ -31,8 +32,9 @@ describe('pick 유틸리티 단위 테스트', () => {
     };
 
     // Act: `pick` 함수 호출
-
+    const result = pick(obj, 'a', 'b', 'd');
     // Assert: 결과가 예상한 객체와 일치하는지 확인
+    expect(result).toEqual({ a: 'A', b: { c: 'C' }, d: null });
   });
 
   /**
@@ -48,8 +50,9 @@ describe('pick 유틸리티 단위 테스트', () => {
     };
 
     // Act: `pick` 함수 호출 (키 미지정)
-
+    const result = pick(obj);
     // Assert: 결과가 빈 객체인지 확인
+    expect(result).toEqual({});
   });
 
   /**
@@ -62,19 +65,21 @@ describe('pick 유틸리티 단위 테스트', () => {
       a: 'A',
       b: 'B',
     };
-
     // Act & Assert: `pick` 함수 호출 시 에러가 발생하는지 확인
+    expect(() => pick(obj, 'z' as unknown as keyof typeof obj)).toThrow(
+      'Property "z" does not exist on the object.'
+    );
   });
 });
 
 describe('debounce 유틸리티 단위 테스트', () => {
   // Vitest의 가짜 타이머를 사용하여 시간 기반 동작을 제어합니다.
   beforeEach(() => {
-    vi.useFakeTimers();
+    vi.useFakeTimers(); // 테스트 환경에서 타이머를 제어하기 위해 가짜 타이머를 사용
   });
 
   afterEach(() => {
-    vi.useRealTimers();
+    vi.useRealTimers(); // 테스트 종료 후 실제 타이머로 복귀
   });
 
   /**
@@ -85,10 +90,11 @@ describe('debounce 유틸리티 단위 테스트', () => {
     // Arrange: 스파이 함수와 debounce 함수 생성
     const spy = vi.fn();
     const debouncedFn = debounce(spy, 300);
-
     // Act: debounce 함수 호출 및 시간 진행
-
+    debouncedFn();
+    vi.advanceTimersByTime(300);
     // Assert: 스파이 함수가 호출되었는지 확인
+    expect(spy).toHaveBeenCalledTimes(1);
   });
 
   /**
@@ -99,7 +105,6 @@ describe('debounce 유틸리티 단위 테스트', () => {
     // Arrange: 스파이 함수와 debounce 함수 생성
     const spy = vi.fn();
     const debouncedFn = debounce(spy, 300);
-
     // Act: debounce 함수 여러 번 호출 및 시간 진행
     debouncedFn(); // 호출 1
 
@@ -109,7 +114,10 @@ describe('debounce 유틸리티 단위 테스트', () => {
 
     debouncedFn(); // 호출 4
 
+    vi.advanceTimersByTime(300); // 300ms 후 시간 진행
+
     // Assert: 스파이 함수가 단 한 번만 호출되었는지 확인
+    expect(spy).toHaveBeenCalledTimes(1); // 마지막 호출 이후에만 실행되어야 함
   });
 
   /**
@@ -121,8 +129,11 @@ describe('debounce 유틸리티 단위 테스트', () => {
     const spy = vi.fn();
     const debouncedFn = debounce(spy, 300);
 
-    // Act: debounce 함수 호출 및 시간 일부 진행
+    // Act: debounce 함수 호출 후, 아직 시간이 지나지 않은 상태
+    debouncedFn();
+    vi.advanceTimersByTime(150); // 150ms만 시간 진행
 
     // Assert: 스파이 함수가 아직 호출되지 않았는지 확인
+    expect(spy).not.toHaveBeenCalled(); // 300ms가 지나기 전에는 호출되지 않아야 함
   });
 });
