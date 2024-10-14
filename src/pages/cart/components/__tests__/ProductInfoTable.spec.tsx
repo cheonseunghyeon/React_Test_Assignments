@@ -44,8 +44,18 @@ it('장바구니에 포함된 아이템들의 이름, 수량, 합계가 제대�
   const [firstItem, secondItem] = dataRows;
 
   // Assert: 첫 번째 아이템의 이름, 수량, 합계 금액을 확인합니다.
+  expect(
+    within(firstItem).getByText('Handmade Cotton Fish')
+  ).toBeInTheDocument();
+  expect(within(firstItem).getByDisplayValue('3')).toBeInTheDocument();
+  expect(within(firstItem).getByText('₩2,427')).toBeInTheDocument();
 
   // Assert: 두 번째 아이템의 이름, 수량, 합계 금액을 확인합니다.
+  expect(
+    within(secondItem).getByText('Awesome Concrete Shirt')
+  ).toBeInTheDocument();
+  expect(within(secondItem).getByDisplayValue('4')).toBeInTheDocument();
+  expect(within(secondItem).getByText('₩1,768')).toBeInTheDocument();
 });
 
 it('특정 아이템의 수량이 변경되었을 때 값이 재계산되어 올바르게 업데이트 된다', async () => {
@@ -55,8 +65,16 @@ it('특정 아이템의 수량이 변경되었을 때 값이 재계산되어 올
   const [firstItem] = dataRows.slice(1); // 첫 번째 데이터 행 선택
 
   // Act: 첫 번째 아이템의 수량을 변경합니다.
+  const quantityInput = within(firstItem).getByRole('spinbutton'); // 수량 입력 필드 찾기
+  await user.clear(quantityInput); // 기존 값 지우기
+  await user.type(quantityInput, '5'); // 새로운 값 입력
 
-  // Assert: 수량이 변경된 후 재계산된 금액이 올바르게 표시되는지 확인합니다.
+  // Assert: 수량 변경 후 합계 금액이 올바르게 표시되는지 확인합니다.
+  // Assert: 수량 변경 후 합계 금액이 올바르게 표시되는지 확인합니다.
+  await waitFor(() => {
+    const updatedTotal = within(firstItem).getByText(/4,045/); // 정규 표현식으로 4,045 찾기
+    expect(updatedTotal).toBeInTheDocument();
+  });
 });
 
 // 최대 수량을 초과할 경우 경고 메시지 확인
@@ -82,8 +100,14 @@ it('특정 아이템의 삭제 버튼을 클릭할 경우 해당 아이템이 �
   const [, secondItem] = dataRows.slice(1); // 두 번째 데이터 행 선택
 
   // Assert: 삭제 전 아이템이 화면에 있는지 확인합니다.
+  expect(secondItem).toBeInTheDocument();
 
-  // Act: 삭제 버튼을 클릭합니다.
+  // Act: 삭제 버튼을 찾고 클릭합니다.
+  const deleteButton =
+    within(secondItem).queryByRole('button') ||
+    within(secondItem).getByText('삭제');
+  await user.click(deleteButton);
 
   // Assert: 삭제 후 해당 아이템이 화면에서 사라졌는지 확인합니다.
+  await waitFor(() => expect(secondItem).not.toBeInTheDocument());
 });

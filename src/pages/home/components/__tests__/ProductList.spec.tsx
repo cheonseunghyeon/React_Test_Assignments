@@ -20,6 +20,12 @@ interface CreateMockDataParams {
   fetchNextPageFn?: Mock<any>;
 }
 
+const mockedNavigate = vi.fn(); // 모킹된 navigate 함수
+vi.mock('react-router-dom', () => ({
+  ...require('react-router-dom'), // 기존 react-router-dom 모듈 유지
+  useNavigate: () => mockedNavigate, // useNavigate 모킹
+}));
+
 const createMockData = ({
   products = [],
   hasNextPage = false,
@@ -57,7 +63,6 @@ const mockProducts: IProduct[] = [
 
 describe('ProductList Component', () => {
   it('로딩이 완료된 경우 상품 리스트가 제대로 모두 노출된다', async () => {
-    // Arrange: Mock 데이터 설정 및 useFetchProducts 훅의 반환 값 설정
     const mockData = createMockData({ products: mockProducts });
 
     (useFetchProducts as jest.Mock).mockReturnValue({
@@ -69,13 +74,15 @@ describe('ProductList Component', () => {
       error: null,
     });
 
-    // Act: ProductList 컴포넌트 렌더링
+    render(<ProductList />);
 
-    // Assert: 모든 상품 카드가 올바르게 렌더링되었는지 확인
+    const product1 = screen.getByText('Product 1');
+    const product2 = screen.getByText('Product 2');
+    expect(product1).toBeInTheDocument();
+    expect(product2).toBeInTheDocument();
   });
 
   it('보여줄 상품 리스트가 더 있는 경우 "더 보기" 버튼이 노출되며, 버튼을 누르면 상품 리스트를 더 가져온다.', async () => {
-    // Arrange: 추가 페이지가 있는 mock 데이터 및 fetchNextPage 함수 모킹
     const fetchNextPageFn = vi.fn();
 
     const mockData = createMockData({
@@ -95,13 +102,15 @@ describe('ProductList Component', () => {
       error: null,
     });
 
-    // Act: ProductList 컴포넌트 렌더링
+    render(<ProductList />);
+    const loadMoreButton = screen.getByText('더 보기');
+    expect(loadMoreButton).toBeInTheDocument();
 
-    // Assert: "더 보기" 버튼이 표시되고 클릭 시 fetchNextPage 함수가 호출되는지 확인
+    await userEvent.click(loadMoreButton);
+    expect(fetchNextPageFn).toHaveBeenCalled();
   });
 
   it('보여줄 상품 리스트가 없는 경우 "더 보기" 버튼이 노출되지 않는다.', async () => {
-    // Arrange: 상품이 없는 mock 데이터 설정
     const mockData = createMockData({ products: [] });
 
     (useFetchProducts as jest.Mock).mockReturnValue({
@@ -113,42 +122,71 @@ describe('ProductList Component', () => {
       error: null,
     });
 
-    // Act: ProductList 컴포넌트 렌더링
+    render(<ProductList />);
 
-    // Assert: "더 보기" 버튼이 노출되지 않는지 확인
+    const loadMoreButton = screen.queryByText('더 보기');
+    expect(loadMoreButton).not.toBeInTheDocument();
   });
 
   describe('로그인 상태일 경우', () => {
     beforeEach(() => {
-      // Arrange: 로그인 상태 모킹
+      mockUseAuthStore({
+        user: {
+          uid: 'user123',
+          email: 'test@example.com',
+          displayName: '홍길동',
+        },
+      });
     });
 
     it('구매 버튼 클릭시 addCartItem 메서드가 호출되며, "/cart" 경로로 navigate 함수가 호출된다.', async () => {
-      // Arrange: 장바구니에 아이템 추가하는 함수 및 mock 데이터 설정
-      // Act: ProductList 컴포넌트 렌더링 및 구매 버튼 클릭
-      // Assert: addCartItem 호출 및 navigate 함수 호출 확인
+      const addCartItem = vi.fn();
+
+      mockUseCartStore({ addCartItem });
+
+      render(<ProductList />);
+      const buyButton = screen.getByText('구매');
+      await userEvent.click(buyButton);
+
+      expect(addCartItem).toHaveBeenCalled();
+      expect(mockedNavigate).toHaveBeenCalledWith('/cart');
     });
 
     it('장바구니 버튼 클릭시 "장바구니 추가 완료!" toast를 노출하며, addCartItem 메서드가 호출된다.', async () => {
-      // Arrange: 장바구니 추가 함수 및 toast 함수 모킹, mock 데이터 설정
-      // Act: ProductList 컴포넌트 렌더링 및 장바구니 버튼 클릭
-      // Assert: addCartItem 호출 및 toast 메시지 표시 확인
+      const addToast = vi.fn();
+      const addCartItem = vi.fn();
+
+      mockUseToastStore({ addToast });
+      mockUseCartStore({ addCartItem });
+
+      render(<ProductList />);
+      const cartButton = await screen.findByText('장바구니');
+      await userEvent.click(cartButton);
+
+      expect(addCartItem).toHaveBeenCalled();
+      expect(addToast).toHaveBeenCalledWith('장바구니 추가 완료!', 'success');
     });
   });
 
   describe('로그인이 되어 있지 않은 경우', () => {
     beforeEach(() => {
-      // Arrange: 로그아웃 상태 모킹
+      mockUseAuthStore({ user: null });
     });
 
     it('구매 버튼 클릭시 "/login" 경로로 navigate 함수가 호출된다.', async () => {
-      // Act: ProductList 컴포넌트 렌더링 및 구매 버튼 클릭
-      // Assert: navigate 함수가 "/login"으로 호출되었는지 확인
+      render(<ProductList />);
+      const buyButton = screen.getByText('구매');
+      await userEvent.click(buyButton);
+
+      expect(mockedNavigate).toHaveBeenCalledWith('/login');
     });
 
     it('장바구니 버튼 클릭시 "/login" 경로로 navigate 함수가 호출된다.', async () => {
-      // Act: ProductList 컴포넌트 렌더링 및 장바구니 버튼 클릭
-      // Assert: navigate 함수가 "/login"으로 호출되었는지 확인
+      render(<ProductList />);
+      const cartButton = await screen.findByText(/장바구니/i);
+      await userEvent.click(cartButton);
+
+      expect(mockedNavigate).toHaveBeenCalledWith('/login');
     });
   });
 });
